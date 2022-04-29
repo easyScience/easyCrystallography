@@ -18,6 +18,7 @@ from numbers import Number
 from easyCore.Utils.io.star import StarCollection, StarEntry, StarLoop, FakeItem, FakeCore, StarHeader, StarSection
 
 from easyCrystallography.Components.AtomicDisplacement import AtomicDisplacement
+from easyCrystallography.Components.Susceptibility import MagneticSusceptibility
 from easyCrystallography.Components.Lattice import Lattice
 from easyCrystallography.Components.Site import Atoms, Site
 from easyCrystallography.Components.SpaceGroup import SpaceGroup
@@ -425,6 +426,7 @@ class CifParser:
                            'atom_site_fract_y',
                            'atom_site_fract_z']
         our_fields = ['label', 'specie', 'occupancy', 'fract_x', 'fract_y', 'fract_z']
+
         found = False
         for loop in loops:
             if set(loop.labels).issuperset(set(required_fields)):
@@ -458,6 +460,7 @@ class CifParser:
                      'Biso': ['Biso'],
                      'Bani': ['B_11', 'B_12', 'B_13', 'B_22', 'B_23', 'B_33']
                      }
+
 
         found = False
         for loop in loops:
@@ -517,7 +520,62 @@ class CifParser:
         if not found:
             for atom in atoms:
                 self.warnings.append('There is no ADP defined in the CIF')
-                # atom.adp('Uiso')
+
+        # Now look for magnetic susceptibility
+        fields = ['atom_site_susceptibility_label', 'atom_site_susceptibility_chi_type']
+        msp_types = {'Ciso': ['Ciso'],
+                     'Cani': ['chi_11', 'chi_12', 'chi_13', 'chi_22', 'chi_23', 'chi_33'],
+                     }
+        found = False
+        for loop in loops:
+            for idx0, field in enumerate(fields):
+                if field in loop.labels:
+                    found = True
+                    needed_labels = []
+                    msp_type = 'Cani'
+                    needed_labels.extend(['atom_site_susceptibility_label',
+                                          'atom_site_susceptibility_chi_11',
+                                          'atom_site_susceptibility_chi_22',
+                                          'atom_site_susceptibility_chi_33',
+                                          'atom_site_susceptibility_chi_12',
+                                          'atom_site_susceptibility_chi_13',
+                                          'atom_site_susceptibility_chi_23'])
+
+                    these_sections = loop.to_StarSections()
+                    for idx, section in enumerate(these_sections):
+                        if set(loop.labels).issuperset(set(needed_labels)):
+                            data_dict = {}
+                            for idx2, key in enumerate(needed_labels[1:]):
+                                temp_value = section.data[0]._kwargs[key].raw_value
+                                if not isinstance(temp_value, Number):
+                                    temp_value = 0
+                                    self.append = self.warnings.append(
+                                        f'Atom {section.data[0]._kwargs[needed_labels[0]].raw_value} has non-numeric '
+                                        f'{key}. Setting to 0')
+                                data_dict[msp_types[msp_type][idx2]] = temp_value
+                            msps = MagneticSusceptibility.from_pars(msp_type, **data_dict)
+                            # Add the errors/fixed
+                            for idx2, key in enumerate(msp_types[msp_type]):
+                                obj = getattr(msps, key)
+                                if hasattr(section.data[0]._kwargs[needed_labels[1+idx2]], 'fixed') and \
+                                        section.data[0]._kwargs[needed_labels[1+idx2]].fixed is not None:
+                                    obj.fixed = section.data[0]._kwargs[needed_labels[1+idx2]].fixed
+                                if hasattr(section.data[0]._kwargs[needed_labels[1+idx2]], 'error') and \
+                                        section.data[0]._kwargs[needed_labels[1+idx2]].error is not None:
+                                    obj.error = section.data[0]._kwargs[needed_labels[1+idx2]].error
+
+                            current_atom_label = section.data[0]._kwargs[needed_labels[0]].raw_value
+                            # Add to an atom
+                            if current_atom_label in atoms.atom_labels:
+                                idx2 = atoms.atom_labels.index(current_atom_label)
+                                atoms[idx2].msp = msps
+                        else:
+                            raise AttributeError
+                    break
+        # There is no adp in the cif. Add default
+        if not found:
+            for atom in atoms:
+                self.warnings.append('There is no MSP defined in the CIF')
         return atoms
 
     def get_symmetry(self, cif_index: int = 0):

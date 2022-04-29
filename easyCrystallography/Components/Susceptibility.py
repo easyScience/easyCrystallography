@@ -29,7 +29,6 @@ _ANIO_DETAILS = {
     }
 }
 
-
 class MSPBase(BaseObj):
 
     def __init__(self, *args, **kwargs):
@@ -69,18 +68,22 @@ class Cani(MSPBase):
     chi_33: ClassVar[Parameter]
 
     def __init__(self,
-                 chi_11: Optional[Union[float, Parameter]] = None, chi_12: Optional[Union[float, Parameter]] = None,
-                 chi_13: Optional[Union[float, Parameter]] = None, chi_22: Optional[Union[float, Parameter]] = None,
-                 chi_23: Optional[Union[float, Parameter]] = None, chi_33: Optional[Union[float, Parameter]] = None,
+                 chi_11: Optional[Union[Parameter, float]] = None,
+                 chi_12: Optional[Union[Parameter, float]] = None,
+                 chi_13: Optional[Union[Parameter, float]] = None,
+                 chi_22: Optional[Union[Parameter, float]] = None,
+                 chi_23: Optional[Union[Parameter, float]] = None,
+                 chi_33: Optional[Union[Parameter, float]] = None,
                  interface=None):
+
         super(Cani, self).__init__('Cani',
-                                          chi_11=Parameter('chi_11', **_ANIO_DETAILS['Cani']),
-                                          chi_12=Parameter('chi_12', **_ANIO_DETAILS['Cani']),
-                                          chi_13=Parameter('chi_13', **_ANIO_DETAILS['Cani']),
-                                          chi_22=Parameter('chi_22', **_ANIO_DETAILS['Cani']),
-                                          chi_23=Parameter('chi_23', **_ANIO_DETAILS['Cani']),
-                                          chi_33=Parameter('chi_33', **_ANIO_DETAILS['Cani']),
-                                          )
+                                   chi_11=Parameter('chi_11', **_ANIO_DETAILS['Cani']),
+                                   chi_12=Parameter('chi_12', **_ANIO_DETAILS['Cani']),
+                                   chi_13=Parameter('chi_13', **_ANIO_DETAILS['Cani']),
+                                   chi_22=Parameter('chi_22', **_ANIO_DETAILS['Cani']),
+                                   chi_23=Parameter('chi_23', **_ANIO_DETAILS['Cani']),
+                                   chi_33=Parameter('chi_33', **_ANIO_DETAILS['Cani']),
+                                   )
         if chi_11 is not None:
             self.chi_11 = chi_11
         if chi_12 is not None:
@@ -101,11 +104,16 @@ class Cani(MSPBase):
 
     @classmethod
     def from_pars(cls,
-                  chi_11: Optional[float] = None, chi_12: Optional[float] = None,
-                  chi_13: Optional[float] = None, chi_22: Optional[float] = None,
-                  chi_23: Optional[float] = None, chi_33: Optional[float] = None,
+                  chi_11: Optional[float] = None,
+                  chi_12: Optional[float] = None,
+                  chi_13: Optional[float] = None,
+                  chi_22: Optional[float] = None,
+                  chi_23: Optional[float] = None,
+                  chi_33: Optional[float] = None,
                   interface=None):
-        return cls(chi_11=chi_11, chi_12=chi_12, chi_13=chi_13, chi_22=chi_22, chi_23=chi_23, chi_33=chi_33, interface=interface)
+#                  interface: Optional[iF] = None):
+        return cls(chi_11=chi_11, chi_12=chi_12, chi_13=chi_13, chi_22=chi_22,
+                   chi_23=chi_23, chi_33=chi_33, interface=interface)
 
 
 _AVAILABLE_ISO_TYPES = {
@@ -136,8 +144,7 @@ class MagneticSusceptibility(BaseObj):
         if msp_class_name in _AVAILABLE_ISO_TYPES.keys():
             msp_class = _AVAILABLE_ISO_TYPES[msp_class_name]
             if "msp_class" in kwargs:
-                msp_type.value = kwargs.pop("msp_class")
-                msp_class = _AVAILABLE_ISO_TYPES[msp_type.raw_value]
+                _ = kwargs.pop("msp_class")
             msp = msp_class(**kwargs, interface=interface)
         else:
             raise AttributeError(f"{msp_class_name} is not a valid magnetic susceptibility type")
@@ -165,12 +172,11 @@ class MagneticSusceptibility(BaseObj):
             addProp(self, par.name, fget=self.__a_getter(par.name), fset=self.__a_setter(par.name))
 
     @classmethod
-    def from_pars(cls, adp_type: str, interface=None, **kwargs):
+    def from_pars(cls, msp_type: str, interface=None, **kwargs):
         return cls(Descriptor('msp_type',
-                              value=adp_type,
-                              **{k: _ANIO_DETAILS['msp_type'][k] for k in _ANIO_DETAILS['msp_type'].keys() if
-                                 k != 'value'}),
-                   interface=interface, **kwargs)
+                              value=msp_type,
+                              **{k: _ANIO_DETAILS['msp_type'][k] for k in _ANIO_DETAILS['msp_type'].keys() if k != 'value'}),
+                              interface=interface, **kwargs)
 
     @classmethod
     def default(cls, interface=None):
