@@ -94,8 +94,26 @@ class AdpBase(BaseObj):
     def from_pars(cls, interface: Optional[iF] = None, **kwargs):
         pass
 
+    def __repr__(self):
+        s = f'{self.name} - ('
+        for par in self.get_parameters():
+            s += f'{par.name}: {par.raw_value}, '
+        s = s[:-2] + ')'
+        return s
+
 
 class Anisotropic(AdpBase):
+
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_susceptibility"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("label", "_label"),
+        ("U_11", "_U_11"),
+        ("U_12", "_U_12"),
+        ("U_13", "_U_13"),
+        ("U_22", "_U_22"),
+        ("U_23", "_U_23"),
+        ("U_33", "_U_33"),
+    ]
 
     U_11: ClassVar[Parameter]
     U_12: ClassVar[Parameter]
@@ -142,6 +160,11 @@ class Anisotropic(AdpBase):
 
 class Isotropic(AdpBase):
 
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("Uiso", "_U_iso_or_equiv"),
+    ]
+
     Uiso: ClassVar[Parameter]
 
     def __init__(self, Uiso: Optional[Union[Parameter, float]] = None, interface: Optional[iF] = None):
@@ -161,6 +184,17 @@ class Isotropic(AdpBase):
 
 
 class AnisotropicBij(AdpBase):
+
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_susceptibility"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("label", "_label"),
+        ("B_11", "_B_11"),
+        ("B_12", "_B_12"),
+        ("B_13", "_B_13"),
+        ("B_22", "_B_22"),
+        ("B_23", "_B_23"),
+        ("B_33", "_B_33"),
+    ]
 
     B_11: ClassVar[Parameter]
     B_12: ClassVar[Parameter]
@@ -208,6 +242,11 @@ class AnisotropicBij(AdpBase):
 
 class IsotropicB(AdpBase):
 
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("Biso", "_B_iso_or_equiv"),
+    ]
+
     Biso: ClassVar[Parameter]
 
     def __init__(self, Biso: Optional[Union[Parameter, float]] = None, interface: Optional[iF] = None):
@@ -241,6 +280,11 @@ if TYPE_CHECKING:
 
 
 class AtomicDisplacement(BaseObj):
+
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("adp_type", "atom_site_adp_type"),
+    ]
 
     adp_type: ClassVar[Descriptor]
     adp_class: ClassVar[AB]

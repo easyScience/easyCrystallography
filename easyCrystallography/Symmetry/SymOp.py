@@ -35,7 +35,7 @@ class SymmOp(MSONable):
         A 4x4 numpy.array representing the symmetry operation.
     """
 
-    def __init__(self, affine_transformation_matrix, tol=0.01):
+    def __init__(self, affine_transformation_matrix: np.ndarray, tol=0.01):
         """
         Initializes the SymmOp from a 4x4 affine transformation matrix.
         In general, this constructor should not be used unless you are
@@ -52,8 +52,9 @@ class SymmOp(MSONable):
         self.affine_matrix = affine_transformation_matrix
         self.tol = tol
 
-    @staticmethod
+    @classmethod
     def from_rotation_and_translation(
+            cls,
             rotation_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
             translation_vec=(0, 0, 0), tol=0.1):
         """
@@ -76,7 +77,7 @@ class SymmOp(MSONable):
         affine_matrix = np.eye(4)
         affine_matrix[0:3][:, 0:3] = rotation_matrix
         affine_matrix[0:3][:, 3] = translation_vec
-        return SymmOp(affine_matrix, tol)
+        return cls(affine_matrix, tol)
 
     def __eq__(self, other):
         return np.allclose(self.affine_matrix, other.affine_matrix,
@@ -193,8 +194,8 @@ class SymmOp(MSONable):
         invr = np.linalg.inv(self.affine_matrix)
         return SymmOp(invr)
 
-    @staticmethod
-    def from_axis_angle_and_translation(axis, angle, angle_in_radians=False,
+    @classmethod
+    def from_axis_angle_and_translation(cls, axis, angle, angle_in_radians=False,
                                         translation_vec=(0, 0, 0)):
         """
         Generates a SymmOp for a rotation about a given axis plus translation.
@@ -231,10 +232,10 @@ class SymmOp(MSONable):
         r[2, 1] = u[1] * u[2] * (1 - cosa) + u[0] * sina
         r[2, 2] = cosa + u[2] ** 2 * (1 - cosa)
 
-        return SymmOp.from_rotation_and_translation(r, vec)
+        return cls.from_rotation_and_translation(r, vec)
 
-    @staticmethod
-    def from_origin_axis_angle(origin, axis, angle, angle_in_radians=False):
+    @classmethod
+    def from_origin_axis_angle(cls, origin, axis, angle, angle_in_radians=False):
         """
         Generates a SymmOp for a rotation about a given axis through an
         origin.
@@ -375,8 +376,8 @@ class SymmOp(MSONable):
 
         return transformation_to_string(self.rotation_matrix, translation_vec=self.translation_vector, delim=", ")
 
-    @staticmethod
-    def from_xyz_string(xyz_string):
+    @classmethod
+    def from_xyz_string(cls, xyz_string):
         """
         Args:
             xyz_string: string of the form 'x, y, z', '-x, -y, z',
@@ -404,7 +405,7 @@ class SymmOp(MSONable):
                 num = float(m.group(2)) / float(m.group(3)) \
                     if m.group(3) != "" else float(m.group(2))
                 trans[i] = num * factor
-        return SymmOp.from_rotation_and_translation(rot_matrix, trans)
+        return cls.from_rotation_and_translation(rot_matrix, trans)
 
     @classmethod
     def from_dict(cls, d):

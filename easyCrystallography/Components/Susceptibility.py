@@ -115,6 +115,17 @@ _AVAILABLE_ISO_TYPES = {
 
 class MagneticSusceptibility(BaseObj):
 
+    _CIF_CONVERSIONS = [
+        ["msp_type", "atom_site_susceptibility_chi_type"],
+        ["label", "atom_site_susceptibility_label"],
+        ["chi_11", "atom_site_susceptibility_chi_11"],
+        ["chi_12", "atom_site_susceptibility_chi_12"],
+        ["chi_13", "atom_site_susceptibility_chi_13"],
+        ["chi_22", "atom_site_susceptibility_chi_22"],
+        ["chi_23", "atom_site_susceptibility_chi_23"],
+        ["chi_33", "atom_site_susceptibility_chi_33"],
+    ]
+
     msp_type: ClassVar[Descriptor]
     msp_class: ClassVar[Type[MSPBase]]
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 __author__ = 'github.com/wardsimon'
 __version__ = '0.1.0'
 
-from typing import List, Union, ClassVar, TypeVar, Optional, Dict, TYPE_CHECKING
+from typing import List, Union, ClassVar, TypeVar, Optional, Dict, TYPE_CHECKING, Tuple
 
 from easyCore import np
 from easyCore.Objects.Variable import Descriptor, Parameter
@@ -46,14 +46,14 @@ S = TypeVar("S", bound="Site")
 
 
 class Site(BaseObj):
-
-    _CIF_CONVERSIONS = [
-        ["label", "atom_site_label"],
-        ["specie", "atom_site_type_symbol"],
-        ["occupancy", "atom_site_occupancy"],
-        ["fract_x", "atom_site_fract_x"],
-        ["fract_y", "atom_site_fract_y"],
-        ["fract_z", "atom_site_fract_z"],
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("label", "_label"),
+        ("specie", "_type_symbol"),
+        ("occupancy", "_occupancy"),
+        ("fract_x", "_fract_x"),
+        ("fract_y", "_fract_y"),
+        ("fract_z", "_fract_z"),
     ]
 
     label: ClassVar[Descriptor]
@@ -280,7 +280,7 @@ class Atoms(BaseCollection):
         return np.array([atom.occupancy.raw_value for atom in self])
 
     def to_star(self) -> List[StarLoop]:
-        main_loop = StarLoop(self, exclude=["adp", "msp"])
+        main_loop = StarLoop(self, exclude=["adp", "msp", "scattering"])
         loops = [main_loop]
         return loops
 

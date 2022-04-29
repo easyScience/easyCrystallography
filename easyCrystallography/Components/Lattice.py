@@ -31,8 +31,9 @@ from easyCore import np, ureg
 from easyCore.Fitting.Constraints import ObjConstraint
 from easyCore.Objects.ObjectClasses import Parameter, BaseObj
 from easyCore.Utils.decorators import memoized
-from easyCore.Utils.io.star import StarSection
+from easyCore.Utils.io.star import StarSection, ItemHolder
 from .SpaceGroup import SpaceGroup
+from gemmi import cif
 
 Vector3Like = Union[List[float], np.ndarray]
 
@@ -61,7 +62,18 @@ CELL_DETAILS = {
     },
 }
 
+
 class Lattice(BaseObj):
+
+    _CIF_SECTION_NAME: ClassVar[str] = "_cell"
+    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("length_a", "_length_a"),
+        ("length_b", "_length_b"),
+        ("length_c", "_length_c"),
+        ("angle_alpha", "_angle_alpha"),
+        ("angle_beta", "_angle_beta"),
+        ("angle_gamma", "_angle_gamma"),
+    ]
 
     length_a: ClassVar[Parameter]
     length_b: ClassVar[Parameter]
@@ -744,6 +756,24 @@ class Lattice(BaseObj):
     @classmethod
     def from_star(cls: Type[L], in_string: str) -> L:
         return StarSection.from_string(in_string).to_class(cls)
+
+    @classmethod
+    def from_cif_block(cls: Type[L], block: cif.Block) -> L:
+        kwargs = {}
+        for item in cls._CIF_CONVERSIONS:
+            kwargs[item[0]] = block.find_pair_item(cls._CIF_SECTION_NAME + item[1])
+        return cls(**kwargs)
+
+    def to_cif_str(self) -> str:
+        block = cif.Block('temp')
+        start_str = block.as_string()
+        self.add_to_cif_block(block)
+        final_str = block.as_string()
+        return final_str[len(start_str):]
+
+    def add_to_cif_block(self, block: cif.Block) -> None:
+        for item in self._CIF_CONVERSIONS:
+            block.set_pair(self._CIF_SECTION_NAME + item[1], str(ItemHolder(getattr(self, item[0]))))
 
     def get_points_in_sphere(
         self,

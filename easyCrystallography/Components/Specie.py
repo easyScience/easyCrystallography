@@ -6,26 +6,32 @@
 __author__ = "github.com/wardsimon"
 __version__ = "0.1.0"
 
+from typing import List, Dict, Union, Any
 
 from easyCore.Objects.ObjectClasses import Descriptor
-from easyCore.Utils.classTools import addProp
-
-from easyCrystallography.Elements.periodic_table import Species, Specie as pSpecie
+from easyCore.Utils.classTools import addProp, removeProp
+import periodictable as pt
+import re
 
 _SPECIE_DETAILS = {
     "type_symbol": {
         "description": "A code to identify the atom species occupying this site.",
-        "url": "https://www.iucr.org/__data/iucr/cifdic_html/1/cif_core.dic/Iatom_site_type_symbol.html",
+        "url":         "https://www.iucr.org/__data/iucr/cifdic_html/1/cif_core.dic/Iatom_site_type_symbol.html",
     },
 }
 
 
 class Specie(Descriptor):
-    def __init__(self, specie: str, **kwargs):
-        if kwargs:
-            specie = kwargs["value"]
-        super(Specie, self).__init__("specie", specie, **_SPECIE_DETAILS["type_symbol"])
-        self.__gen_data(specie)
+    def __init__(self, specie: str = "H", **kwargs):
+        if "value" in kwargs.keys():
+            specie = kwargs.pop("value")
+
+        self._raw_data: Dict[str, Union[str, int]] = {}
+        self._props: Dict[str, Any] = {}
+
+        self._reset_data()
+        super(Specie, self).__init__("specie", self.__gen_data(specie), **_SPECIE_DETAILS["type_symbol"])
+
         # Monkey patch the unit and the value to take into account the new type situation
         self.__previous_set = self.__class__.value.fset
 
@@ -37,48 +43,102 @@ class Specie(Descriptor):
             fdel=self.__class__.value.fdel,
         )
 
-    def __gen_data(self, value: str):
-        try:
-            self._specie = Species.from_string(value)
-        except ValueError:
-            self._specie = pSpecie(value)
-        return value
+    def _reset_data(self):
+        self._raw_data = dict.fromkeys(["str", "observed", "element", "isotope", "oxi_state", "spin"])
+        self._props = {}
 
-    def oxi_state(self):
-        return self._specie.oxi_state
+    def __gen_data(self, value_str: str):
+        s = re.search(r"([0-9.]*)([A-Z][a-z]*)([0-9.]*)([+\-]*)", value_str)
+        # group(1) = Isotope
+        # group(2) = Element
+        # group(3) = Oxi state
+        # group(4) = Oxi +/2
 
-    def ionic_radius(self):
-        return self._specie.ionic_radius
+        if s is None:
+            raise ValueError("Invalid specie string")
+        element_str = s.group(2)
+        element = getattr(pt, element_str, None)
+        if element is None:
+            raise ValueError(f"Element ({s.group(2)}) not found in periodictable")
 
-    @property
-    def n_scattering_lengths(self):
-        return self._specie.data.get("N Scattering Lengths", {})
+        if self._props is not None:
+            for k in self._props.keys():
+                removeProp(self, k)
 
-    def get_attribute(self, attribute):
-        return self._specie.data.get(attribute, None)
+        self._reset_data()
+        self._raw_data["str"] = value_str
+        self._raw_data["element"] = element
+        self._raw_data["observed"] = element
 
-    @property
-    def common_name(self) -> str:
-        return self._specie.data["Name"]
+        props = {s: getattr(self._raw_data["observed"], s)
+                 for s in self._raw_data["observed"].__dir__()
+                 if not s.startswith('_') and hasattr(self._raw_data["observed"], s)
+                 }
+        isotope_str = s.group(1)
+        self._raw_data["isotope"] = None
+        if isotope_str:
+            self._raw_data["isotope"] = int(isotope_str)
+            self._raw_data["observed"] = pt.core.Isotope(self._raw_data["observed"], self._raw_data["isotope"])
+            props.update(
+                {s: getattr(self._raw_data["observed"], s)
+                 for s in self._raw_data["observed"].__dir__()
+                 if not s.startswith('_') and hasattr(self._raw_data["observed"], s)
+                 }
+            )
+        oxi_state_str = s.group(3)
+        oxi_pm_str = s.group(4)
+        self._raw_data["oxi_state"] = None
+        if oxi_state_str:
+            self._raw_data["oxi_state"] = int(oxi_pm_str + oxi_state_str)
+            self._raw_data["observed"] = pt.core.Ion(self._raw_data["observed"], self._raw_data["oxi_state"])
+            props.update(
+                {s: getattr(self._raw_data["observed"], s)
+                 for s in self._raw_data["observed"].__dir__()
+                 if not s.startswith('_') and hasattr(self._raw_data["observed"], s)
+                 }
+            )
+        props["common_name"] = props.pop("name")
+        self._props = props
+        for k, v in props.items():
+            addProp(self, k, fget=self.__getter_periodic(k))
+        rep = f"{self._raw_data['element']}"
+        if self.is_ion:
+            rep += f"{self._raw_data['oxi_state']}"
+            if self._raw_data["oxi_state"] > 0:
+                rep += "+"
+        return rep
 
-    @property
-    def spin(self):
-        if hasattr(self._specie, "spin"):
-            return self._specie.spin
-        return None
-
-    @spin.setter
-    def spin(self, value):
-        if hasattr(self._specie, "spin") or "spin" in self._specie.supported_properties:
-            self._specie.spin = value
-        else:
-            raise AttributeError
-
-    def __repr__(self) -> str:
-        return str(self._specie)
-
-    def as_dict(self, skip: list = None) -> dict:
+    def as_dict(self, skip: List[str] = None) -> dict:
         if skip is None:
             skip = []
-        skip.append("value")
-        return super(Specie, self).as_dict(skip=skip)
+        skip.append("specie")
+        d = super(Specie, self).as_dict(skip=skip)
+        d['value'] = self._raw_data['str']
+        return d
+
+    def __repr__(self) -> str:
+        rep = f"<{self.__class__.__name__} \'{self.name}\': "
+        if self.is_isotope:
+            rep += f"{self._raw_data['isotope']}"
+        rep += f"{self._raw_data['element']}"
+        if self.is_ion:
+            rep += f"{self._raw_data['oxi_state']}"
+            if self._raw_data["oxi_state"] > 0:
+                rep += "+"
+        rep += ">"
+        return rep
+
+    @staticmethod
+    def __getter_periodic(key: str):
+        def getter(obj):
+            return obj._props.get(key)
+
+        return getter
+
+    @property
+    def is_ion(self):
+        return self._raw_data["oxi_state"] is not None
+
+    @property
+    def is_isotope(self):
+        return self._raw_data["isotope"] is not None
