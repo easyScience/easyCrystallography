@@ -1,3 +1,3 @@
-easysciencecore==0.2.2
 periodictable==1.6.0
 gemmi==0.5.3
+easysciencecore @ git+https://github.com/easyScience/easyCore.git@develop

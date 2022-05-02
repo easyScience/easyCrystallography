@@ -193,8 +193,10 @@ class SpaceGroup(BaseObj):
             ops.append(SymmOp.from_xyz_string(xyz))
         return cls.from_symOps(ops, interface)
 
-    def __on_change(self, new_spacegroup: Union[int, str],
+    def __on_change(self,
+                    new_spacegroup: Union[int, str],
                     new_setting: Optional = None,
+                    operations_set: Optional = None,
                     set_internal: bool = True) -> Tuple[str, str]:
         """
         Internal function to update the space group. This function is called when the space group is changed. It checks
@@ -205,37 +207,43 @@ class SpaceGroup(BaseObj):
         :param set_internal: Should internal objects be updated
         """
         setting = "\x00"
-        if isinstance(new_spacegroup, str):
-            if ':' in new_spacegroup:
-                new_spacegroup, new_setting = new_spacegroup.split(':')
-            sg_data = gemmi.find_spacegroup_by_name(new_spacegroup)
-            if sg_data is None:
-                try:
-                    sg_data = gemmi.find_spacegroup_by_ops(gemmi.symops_from_hall(new_spacegroup))
-                except RuntimeError:
-                    sg_data = None
+        if operations_set is not None:
+            sg_data = None
         else:
-            sg_data = gemmi.find_spacegroup_by_number(int(new_spacegroup))
-
-        if sg_data is None:
-            raise ValueError(f"Spacegroup \'{new_spacegroup}\' not found in database.")
-
-        reference = sg_data.ext
-        if new_setting is None or new_setting == "" or new_setting == "\x00":
-            if reference != '\x00':
-                setting = reference
-        else:
-            if new_setting != reference:
-                sg_data = gemmi.find_spacegroup_by_name(sg_data.hm + ':' + new_setting)
-                setting = sg_data.ext
+            if isinstance(new_spacegroup, str):
+                if ':' in new_spacegroup:
+                    new_spacegroup, new_setting = new_spacegroup.split(':')
+                sg_data = gemmi.find_spacegroup_by_name(new_spacegroup)
+                if sg_data is None:
+                    try:
+                        sg_data = gemmi.find_spacegroup_by_ops(gemmi.symops_from_hall(new_spacegroup))
+                    except RuntimeError:
+                        sg_data = None
             else:
-                setting = new_setting
+                sg_data = gemmi.find_spacegroup_by_number(int(new_spacegroup))
+
+            if sg_data is None:
+                raise ValueError(f"Spacegroup \'{new_spacegroup}\' not found in database.")
+
+            reference = sg_data.ext
+            if new_setting is None or new_setting == "" or new_setting == "\x00":
+                if reference != '\x00':
+                    setting = reference
+            else:
+                if new_setting != reference:
+                    sg_data = gemmi.find_spacegroup_by_name(sg_data.hm + ':' + new_setting)
+                    setting = sg_data.ext
+                else:
+                    setting = new_setting
+            if operations_set is None:
+                operations_set = sg_data.operations()
+        operations = [SymmOp.from_rotation_and_translation(np.array(op.rot)/op.DEN, np.array(op.tran)/op.DEN) for op in operations_set]
         if set_internal:
             self._sg_data = sg_data
             self._space_group_HM_name.value = sg_data.hm
             self._setting.value = setting
-            self._operations = [SymmOp.from_rotation_and_translation(op.rot, op.tran) for op in sg_data.operations()]
-        return sg_data.hm, setting
+            self._operations = operations
+        return sg_data.hm, setting, operations
 
     @property
     def setting(self) -> Optional[Descriptor]:
@@ -256,7 +264,7 @@ class SpaceGroup(BaseObj):
 
         :param new_setting: Space group setting
         """
-        _, setting = self.__on_change(self._space_group_HM_name.raw_value, new_setting, set_internal=True)
+        _, setting, _ = self.__on_change(self._space_group_HM_name.raw_value, new_setting, set_internal=True)
 
     @property
     def setting_str(self) -> str:
@@ -285,7 +293,7 @@ class SpaceGroup(BaseObj):
 
         :param value: Space group name as a string
         """
-        _, _ = self.__on_change(value, set_internal=True)
+        self.__on_change(value, set_internal=True)
 
     @property
     def hermann_mauguin(self) -> str:
@@ -321,7 +329,7 @@ class SpaceGroup(BaseObj):
 
         :param new_it_number: International number of the new space group
         """
-        _, _ = self.__on_change(new_it_number, set_internal=True)
+        self.__on_change(new_it_number, set_internal=True)
 
     @property
     def crystal_system(self) -> str:

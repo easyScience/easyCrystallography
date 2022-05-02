@@ -44,7 +44,7 @@ packages = [ { include = "easyCrystallography" } ]
 python = ">=3.7,<3.11" # "^3.8" generates error when installing PySide2 in easyAppGui
 periodictable = "^1.6.0"
 gemmi = "^0.5.3"
-easyScienceCore = '>=0.2.2'
+easysciencecore = { git = 'https://github.com/easyScience/easyCore.git', rev = 'develop' }
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0.0"
