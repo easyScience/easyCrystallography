@@ -123,7 +123,7 @@ def generate_bonds(phase_obj, force_no_sym: bool = False,
     d_ra = c_mat[5, :]
     c_mat = c_mat[[0, 1, 2, 3, 4, 6], :]
     basis_vector = phase_obj.cell.matrix
-    sym_ops = phase_obj.spacegroup.symmetry_opts
+    sym_ops = phase_obj.spacegroup.symmetry_ops
     if not force_no_sym:
         n_mat = []
         if max_sym is None:

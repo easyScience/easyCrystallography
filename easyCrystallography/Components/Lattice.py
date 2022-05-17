@@ -750,13 +750,6 @@ class Lattice(BaseObj):
             *self.lengths, *self.angles, interface=self.interface
         )
 
-    def to_star(self) -> StarSection:
-        return StarSection(self)
-
-    @classmethod
-    def from_star(cls: Type[L], in_string: str) -> L:
-        return StarSection.from_string(in_string).to_class(cls)
-
     @classmethod
     def from_cif_block(cls: Type[L], block: cif.Block) -> L:
         kwargs = {}

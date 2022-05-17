@@ -46,7 +46,9 @@ class Phase(BaseObj):
         if isinstance(cell, Lattice):
             cell = PeriodicLattice.from_lattice_and_spacegroup(cell, spacegroup)
         if atoms is None:
-            atoms = Atoms("atoms")
+            atoms = PeriodicAtoms("atoms", lattice=cell)
+        elif isinstance(atoms, Atoms):
+            atoms = PeriodicAtoms.from_atoms(cell, atoms)
         if scale is None:
             scale = Parameter("scale", 1, min=0)
 
@@ -136,7 +138,12 @@ class Phase(BaseObj):
         :return: cif string from the current crystal
         :rtype: str
         """
-        return str(self.cif)
+        from gemmi import cif
+        block = cif.Block(self.name)
+        objs = [self.cell, self._spacegroup, self.atoms]
+        for obj in objs:
+            obj.add_to_cif_block(block)
+        return block.as_string()
 
     @property
     def enforce_sym(self):
@@ -210,15 +217,15 @@ class Phase(BaseObj):
         new_center = new_center.reshape((3,))
         self._centre = new_center
 
-    @property
-    def cif(self) -> CifIO:
-        """
-        The current structure in a cif form.
-
-        :return: Cif object representing the current crystal
-        :rtype: CifIO
-        """
-        return CifIO.from_objects(self.name, self.cell, self.spacegroup, self.atoms)
+    # @property
+    # def cif(self) -> CifIO:
+    #     """
+    #     The current structure in a cif form.
+    #
+    #     :return: Cif object representing the current crystal
+    #     :rtype: CifIO
+    #     """
+    #     return CifIO.from_objects(self.name, self.cell, self.spacegroup, self.atoms)
 
     @classmethod
     def from_cif_str(cls, in_string: str):

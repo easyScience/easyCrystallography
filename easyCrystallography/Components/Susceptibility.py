@@ -29,6 +29,7 @@ _ANIO_DETAILS = {
     }
 }
 
+
 class MSPBase(BaseObj):
 
     def __init__(self, *args, **kwargs):
@@ -59,13 +60,22 @@ class MSPBase(BaseObj):
 
 
 class Cani(MSPBase):
-
     chi_11: ClassVar[Parameter]
     chi_12: ClassVar[Parameter]
     chi_13: ClassVar[Parameter]
     chi_22: ClassVar[Parameter]
     chi_23: ClassVar[Parameter]
     chi_33: ClassVar[Parameter]
+
+    _CIF_CONVERSIONS = [
+        ("label", "_label"),
+        ("chi_11", "_chi_11"),
+        ("chi_12", "_chi_12"),
+        ("chi_13", "_chi_13"),
+        ("chi_22", "_chi_22"),
+        ("chi_23", "_chi_23"),
+        ("chi_33", "_chi_33"),
+    ]
 
     def __init__(self,
                  chi_11: Optional[Union[Parameter, float]] = None,
@@ -111,7 +121,7 @@ class Cani(MSPBase):
                   chi_23: Optional[float] = None,
                   chi_33: Optional[float] = None,
                   interface=None):
-#                  interface: Optional[iF] = None):
+        #                  interface: Optional[iF] = None):
         return cls(chi_11=chi_11, chi_12=chi_12, chi_13=chi_13, chi_22=chi_22,
                    chi_23=chi_23, chi_33=chi_33, interface=interface)
 
@@ -122,17 +132,14 @@ _AVAILABLE_ISO_TYPES = {
 
 
 class MagneticSusceptibility(BaseObj):
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_susceptibility"
 
-    _CIF_CONVERSIONS = [
-        ["msp_type", "atom_site_susceptibility_chi_type"],
-        ["label", "atom_site_susceptibility_label"],
-        ["chi_11", "atom_site_susceptibility_chi_11"],
-        ["chi_12", "atom_site_susceptibility_chi_12"],
-        ["chi_13", "atom_site_susceptibility_chi_13"],
-        ["chi_22", "atom_site_susceptibility_chi_22"],
-        ["chi_23", "atom_site_susceptibility_chi_23"],
-        ["chi_33", "atom_site_susceptibility_chi_33"],
-    ]
+    @property
+    def _CIF_CONVERSIONS(self) -> List[Tuple[str, str]]:
+        msp_type = getattr(self, 'msp_type', None)
+        if msp_type is not None:
+            _AVAILABLE_ISO_TYPES[msp_type.raw_value]._CIF_CONVERSIONS
+
 
     msp_type: ClassVar[Descriptor]
     msp_class: ClassVar[Type[MSPBase]]
@@ -175,8 +182,9 @@ class MagneticSusceptibility(BaseObj):
     def from_pars(cls, msp_type: str, interface=None, **kwargs):
         return cls(Descriptor('msp_type',
                               value=msp_type,
-                              **{k: _ANIO_DETAILS['msp_type'][k] for k in _ANIO_DETAILS['msp_type'].keys() if k != 'value'}),
-                              interface=interface, **kwargs)
+                              **{k: _ANIO_DETAILS['msp_type'][k] for k in _ANIO_DETAILS['msp_type'].keys() if
+                                 k != 'value'}),
+                   interface=interface, **kwargs)
 
     @classmethod
     def default(cls, interface=None):
@@ -246,4 +254,3 @@ class MagneticSusceptibility(BaseObj):
             obj.msp_class._kwargs[key].value = value
 
         return setter
-

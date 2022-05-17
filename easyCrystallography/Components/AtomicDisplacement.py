@@ -8,7 +8,8 @@ from __future__ import annotations
 __author__ = 'github.com/wardsimon'
 __version__ = '0.1.0'
 
-from typing import List, Tuple, Union, ClassVar, TypeVar, Optional, TYPE_CHECKING
+import gemmi
+from typing import List, Tuple, Union, ClassVar, TypeVar, Optional, TYPE_CHECKING, NoReturn
 
 from easyCore import np
 from easyCore.Utils.io.star import StarEntry, StarSection, StarLoop
@@ -104,7 +105,7 @@ class AdpBase(BaseObj):
 
 class Anisotropic(AdpBase):
 
-    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_susceptibility"
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_aniso"
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
         ("label", "_label"),
         ("U_11", "_U_11"),
@@ -162,6 +163,7 @@ class Isotropic(AdpBase):
 
     _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("adp_type", "_adp_type"),
         ("Uiso", "_U_iso_or_equiv"),
     ]
 
@@ -185,7 +187,7 @@ class Isotropic(AdpBase):
 
 class AnisotropicBij(AdpBase):
 
-    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_susceptibility"
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site_aniso"
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
         ("label", "_label"),
         ("B_11", "_B_11"),
@@ -244,6 +246,7 @@ class IsotropicB(AdpBase):
 
     _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
+        ("adp_type", "_adp_type"),
         ("Biso", "_B_iso_or_equiv"),
     ]
 
@@ -282,9 +285,13 @@ if TYPE_CHECKING:
 class AtomicDisplacement(BaseObj):
 
     _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
-    _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
-        ("adp_type", "atom_site_adp_type"),
-    ]
+    
+    @property
+    def _CIF_CONVERSIONS(self) -> List[Tuple[str, str]]:
+        adp_type = getattr(self, 'adp_type', None)
+        if adp_type is not None and 'iso' in adp_type.raw_value:
+            return _AVAILABLE_ISO_TYPES[adp_type.raw_value]._CIF_CONVERSIONS
+
 
     adp_type: ClassVar[Descriptor]
     adp_class: ClassVar[AB]
@@ -383,6 +390,22 @@ class AtomicDisplacement(BaseObj):
              ]
         return StarSection.from_StarEntries(s)
 
+    def to_cif_str(self) -> str:
+        block = gemmi.cif.Block('temp')
+        start_str = block.as_string()
+        self.add_to_cif_block(block)
+        final_str = block.as_string()
+        return final_str[len(start_str):]
+
+    def add_to_cif_block(self, block: gemmi.cif.Block, atoms) -> NoReturn:
+        _CIF_SECTION_NAME = _AVAILABLE_ISO_TYPES[self.adp_type.raw_value]._CIF_SECTION_NAME
+        # keys, cif_keys = zip(*)
+
+        loop = block.init_loop(_CIF_SECTION_NAME, cif_keys)
+        for atom in atoms:
+            items = [str(getattr(atom, key, getattr(self, key)).raw_value) for key in keys]
+            loop.add_row(items)
+
     @staticmethod
     def __a_getter(key: str):
 
@@ -397,3 +420,7 @@ class AtomicDisplacement(BaseObj):
             obj.adp_class._kwargs[key].value = value
 
         return setter
+
+    def _get_cif_conversions(self):
+        conversions = _AVAILABLE_ISO_TYPES[self.adp_type.raw_value]._CIF_CONVERSIONS
+        return conversions, []

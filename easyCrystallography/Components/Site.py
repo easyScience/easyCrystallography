@@ -7,7 +7,8 @@ from __future__ import annotations
 __author__ = 'github.com/wardsimon'
 __version__ = '0.1.0'
 
-from typing import List, Union, ClassVar, TypeVar, Optional, Dict, TYPE_CHECKING, Tuple
+from gemmi import cif
+from typing import List, Union, ClassVar, TypeVar, Optional, Dict, TYPE_CHECKING, Tuple, NoReturn
 
 from easyCore import np
 from easyCore.Objects.Variable import Descriptor, Parameter
@@ -50,10 +51,10 @@ class Site(BaseObj):
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
         ("label", "_label"),
         ("specie", "_type_symbol"),
-        ("occupancy", "_occupancy"),
         ("fract_x", "_fract_x"),
         ("fract_y", "_fract_y"),
         ("fract_z", "_fract_z"),
+        ("occupancy", "_occupancy"),
     ]
 
     label: ClassVar[Descriptor]
@@ -234,6 +235,7 @@ class PeriodicSite(Site):
 
 class Atoms(BaseCollection):
 
+    _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
     _SITE_CLASS = Site
 
     def __init__(self, name: str, *args, interface: Optional[iF] = None, **kwargs):
@@ -288,6 +290,87 @@ class Atoms(BaseCollection):
     def from_string(cls, in_string: str):
         s = StarLoop.from_string(in_string, [name[0] for name in cls._SITE_CLASS._CIF_CONVERSIONS])
         return s.to_class(cls, cls._SITE_CLASS)
+
+    @classmethod
+    def from_cif_block(cls, block: cif.Block):
+        keys = [cls._CIF_SECTION_NAME + name[1] if 'occupancy' not in name[1] else '?' + cls._CIF_SECTION_NAME + name[1] for name in cls._SITE_CLASS._CIF_CONVERSIONS]
+        table = block.find(keys)
+        atoms = []
+        for row in table:
+            kwargs = {}
+            for idx, item in enumerate(cls._SITE_CLASS._CIF_CONVERSIONS):
+                ec_name, cif_name = item
+                if row.has(idx):
+                    try:
+                        kwargs[ec_name] = float(row[idx])
+                    except ValueError:
+                        kwargs[ec_name] = row[idx]
+            atoms.append(cls._SITE_CLASS(**kwargs))
+        return cls('from_cif', *atoms)
+
+    def to_cif_str(self) -> str:
+        block = cif.Block('temp')
+        start_str = block.as_string()
+        self.add_to_cif_block(block)
+        final_str = block.as_string()
+        return final_str[len(start_str):]
+
+    def add_to_cif_block(self, block: cif.Block) -> NoReturn:
+        addons = set(self[0]._kwargs.keys()) - set(Site.__annotations__.keys())
+        k = getattr(self._SITE_CLASS, '_CIF_CONVERSIONS')
+        if not isinstance(k, list):
+            if len(self) > 0:
+                k = self[0]._CIF_CONVERSIONS
+            else:
+                raise ValueError("No sites in collection")
+        these_keys, these_cif_keys = zip(*k)
+        additional_values = []
+        additional_objs = []
+        for idx0 in range(len(self)):
+            additional_attr = []
+            additional_value = []
+            for addon in addons:
+                obj = getattr(self[idx0], addon, None)
+                if obj is None:
+                    continue
+                additional_cif_keys = []
+                additional_keys = []
+                additional_attr.append(obj)
+                ats = getattr(obj, '_CIF_CONVERSIONS', None)
+                if ats is not None:
+                    new_keys, new_cif_keys = zip(*ats)
+                    for idx, new_key in enumerate(new_keys):
+                        if new_key not in these_keys:
+                            additional_keys.append(new_key)
+                            additional_cif_keys.append(new_cif_keys[idx])
+                    additional_value.append(tuple(zip(additional_keys, additional_cif_keys)))
+                else:
+                    if idx0 == 0 and obj is not None:
+                        obj.add_to_cif_block(block, self)
+            additional_objs.append(additional_attr)
+            additional_values.append(additional_value)
+        self._add_to_cif_block(block, additional_values, additional_objs)
+
+    def _add_to_cif_block(self, block: cif.Block, additional_keys, additional_objs) -> NoReturn:
+        # First add the main loop
+        items = list(self._SITE_CLASS._CIF_CONVERSIONS)
+        names = [item[1] for item in items]
+        lines = []
+        for idx1, atom in enumerate(self):
+            line = []
+            for idx2, item in enumerate(items):
+                line.append(str(atom.__getattribute__(item[0]).raw_value))
+            lines.append(line)
+
+        for keys, objs, line in zip(additional_keys, additional_objs, lines):
+            for idx, obj in enumerate(objs):
+                for key in keys[idx]:
+                    line.append(str(obj.__getattribute__(key[0]).raw_value))
+                    if key[1] not in names:
+                        names.append(key[1])
+        loop = block.init_loop(self._CIF_SECTION_NAME, names)
+        for line in lines:
+            loop.add_row(line)
 
 
 A = TypeVar("A", bound=Atoms)
