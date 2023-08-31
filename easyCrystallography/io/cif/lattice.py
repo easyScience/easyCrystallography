@@ -28,6 +28,15 @@ class Lattice(CIF_Template):
         ("angle_gamma", "_angle_gamma"),
     ]
 
+    _CIF_CONTENT: ClassVar[List[str]] = [
+        "length_a",
+        "length_b",
+        "length_c",
+        "angle_alpha",
+        "angle_beta",
+        "angle_gamma",
+    ]
+
     def __init__(self, reference_class=_Lattice):
         super().__init__()
         self._CIF_CLASS = reference_class
@@ -36,8 +45,12 @@ class Lattice(CIF_Template):
         kwargs = {}
         errors = {}
         is_fixed = {}
-        for item in self._CIF_CONVERSIONS:
-            value = block.find_pair_item(self._CIF_SECTION_NAME + item[1])
+        # for item in self._CIF_CONVERSIONS:
+        for item in self._CIF_CONTENT:
+            # value = block.find_pair_item(self._CIF_SECTION_NAME + item[1])
+            value = block.find_pair_item(self._CIF_SECTION_NAME + "_" + item)
+            if value is None:
+                value = block.find_pair_item(self._CIF_SECTION_NAME + "." + item)
             V, E, F = self.string_to_variable(value.pair[1])
             if E:
                 errors[item[0]] = E
