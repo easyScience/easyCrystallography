@@ -272,12 +272,12 @@ class Atoms(CIF_Template):
 
     _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
     _CIF_CONVERSIONS: ClassVar[List[Tuple[str, str]]] = [
-        ("label", "_label"),
-        ("specie", "_type_symbol"),
-        ("fract_x", "_fract_x"),
-        ("fract_y", "_fract_y"),
-        ("fract_z", "_fract_z"),
-        ("occupancy", "_occupancy"),
+        ("label", "_label", ".label"),
+        ("specie", "_type_symbol", ".type_symbol"),
+        ("fract_x", "_fract_x", ".fract_x"),
+        ("fract_y", "_fract_y", ".fract_y"),
+        ("fract_z", "_fract_z", ".fract_z"),
+        ("occupancy", "_occupancy", ".occupancy"),
     ]
 
     def __init__(self, reference_class=_Atoms):
@@ -287,8 +287,12 @@ class Atoms(CIF_Template):
     def _site_runner(self, block):
         keys = [
             self._CIF_SECTION_NAME + name[1] if 'occupancy' not in name[1] else '?' + self._CIF_SECTION_NAME + name[1]
-            for name in self._CIF_CONVERSIONS]
-        table = block.find(keys)
+            for name in self._CIF_CONVERSIONS
+        ]
+        table = block.find(keys) if (table := block.find(keys)).loop is not None else block.find([
+            self._CIF_SECTION_NAME + name[2] if 'occupancy' not in name[2] else '?' + self._CIF_SECTION_NAME + name[2]
+            for name in self._CIF_CONVERSIONS
+        ])
         atom_dict = {}
         error_dict = {}
         fixed_dict = {}
@@ -297,7 +301,7 @@ class Atoms(CIF_Template):
             errors = {}
             is_fixed = {}
             for idx, item in enumerate(self._CIF_CONVERSIONS):
-                ec_name, cif_name = item
+                ec_name, _, _ = item
                 if row.has(idx):
                     V, E, F = self.string_to_variable(row[idx])
                     kwargs[ec_name] = V
