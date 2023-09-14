@@ -53,10 +53,10 @@ class Lattice(CIF_Template):
                 value = block.find_pair_item(self._CIF_SECTION_NAME + "." + item)
             V, E, F = self.string_to_variable(value.pair[1])
             if E:
-                errors[item[0]] = E
+                errors[item] = E
             if F is not None and not F:
-                is_fixed[item[0]] = F
-            kwargs[item[0]] = V
+                is_fixed[item] = F
+            kwargs[item] = V
         obj = self._CIF_CLASS(**kwargs)
         for error in errors.keys():
             setattr(getattr(obj, error), 'error', errors[error])
