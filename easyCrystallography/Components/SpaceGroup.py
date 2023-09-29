@@ -228,7 +228,7 @@ class SpaceGroup(BaseObj):
 
             hm_name = sg_data.hm
             reference = sg_data.ext
-            if new_setting is None or new_setting == "" or new_setting == "\x00":
+            if new_setting is None or new_setting == "" or new_setting == "\x00" or new_setting == "abc":
                 if reference != '\x00':
                     setting = reference
             else:
@@ -238,7 +238,9 @@ class SpaceGroup(BaseObj):
                     pass
                 new_setting = str(new_setting)
                 if new_setting != reference:
-                    sg_data = gemmi.find_spacegroup_by_name(sg_data.hm + ':' + new_setting)
+                    orig_setting = sg_data.ext
+                    # modify the space group with the new setting
+                    sg_data = gemmi.find_spacegroup_by_name(sg_data.hm + ':' + orig_setting + new_setting)
                     setting = sg_data.ext
                 else:
                     setting = new_setting
