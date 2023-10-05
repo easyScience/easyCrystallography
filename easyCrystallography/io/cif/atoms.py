@@ -23,10 +23,10 @@ class AtomicDisplacement(CIF_Template):
     _CIF_SECTION_NAME: ClassVar[str] = "_atom_site"
 
     _CIF_ADP_ISO_CONVERSIONS = [
-        ("label", "_label"),
-        ("adp_type", "_adp_type"),
-        ("Biso", "_B_iso_or_equiv"),
-        ("Uiso", "_U_iso_or_equiv"),
+        ("label", "_label", ".label"),
+        ("adp_type", "_adp_type", ".adp_type"),
+        ("Biso", "_B_iso_or_equiv", ".B_iso_or_equiv"),
+        ("Uiso", "_U_iso_or_equiv", ".U_iso_or_equiv"),
     ]
     _CIF_ADP_ANISO_CONVERSIONS = [
         ("label", "_aniso_label"),
@@ -56,6 +56,12 @@ class AtomicDisplacement(CIF_Template):
             self._CIF_SECTION_NAME + name[1] if 'label' in name[1] else '?' + self._CIF_SECTION_NAME + name[1]
             for name in self._CIF_ADP_ISO_CONVERSIONS]
         table = block.find(keys)
+        if table.loop is None:
+            # this means it might be the dictionary CIF
+            keys = [
+                self._CIF_SECTION_NAME + name[2] if 'label' in name[2] else '?' + self._CIF_SECTION_NAME + name[2]
+                for name in self._CIF_ADP_ISO_CONVERSIONS]
+            table = block.find(keys)
         for row in table:
             kwargs = {}
             errors = {}
