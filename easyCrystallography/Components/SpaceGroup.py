@@ -196,6 +196,27 @@ class SpaceGroup(BaseObj):
             ops.append(SymmOp.from_xyz_string(xyz))
         return cls.from_symOps(ops, interface)
 
+    @staticmethod
+    def find_settings_by_number(number):
+        ext = []
+        for item in gemmi.spacegroup_table():
+            if item.number > number:
+                break
+            if item.number == number:
+                st = ""
+                if item.ext and item.ext != "\x00":
+                    st += item.ext
+                if item.qualifier:
+                    st += item.qualifier
+                else:
+                    if item.number < 75:
+                        st += "abc"
+                # failed, just assign "1"
+                if not st:
+                    st = "1"
+                ext.append(st)
+        return ext
+
     def __on_change(self,
                     new_spacegroup: Union[int, str],
                     new_setting: Optional[str] = None,
@@ -226,9 +247,11 @@ class SpaceGroup(BaseObj):
             if sg_data is None:
                 raise ValueError(f"Spacegroup \'{new_spacegroup}\' not found in database.")
 
+            settings = self.find_settings_by_number(sg_data.number)
             hm_name = sg_data.hm
             reference = sg_data.ext
-            if new_setting is None or new_setting == "" or new_setting == "\x00" or new_setting == "abc":
+
+            if new_setting is None or new_setting == "" or new_setting == "\x00":
                 if reference != '\x00':
                     setting = reference
             else:
@@ -244,6 +267,9 @@ class SpaceGroup(BaseObj):
                     setting = sg_data.ext
                 else:
                     setting = new_setting
+                if new_setting in settings:
+                    setting = new_setting
+
             if operations_set is None:
                 operations_set = sg_data.operations()
             operations = [SymmOp.from_rotation_and_translation(np.array(op.rot) / op.DEN, np.array(op.tran) / op.DEN)
