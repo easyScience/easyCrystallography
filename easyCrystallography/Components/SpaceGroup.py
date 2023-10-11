@@ -198,6 +198,10 @@ class SpaceGroup(BaseObj):
 
     @staticmethod
     def find_settings_by_number(number):
+        """
+        Find the IT_coordinate_system_code by group's number.
+        gemmi doesn't do it natively.
+        """
         ext = []
         for item in gemmi.spacegroup_table():
             if item.number > number:
@@ -209,6 +213,7 @@ class SpaceGroup(BaseObj):
                 if item.qualifier:
                     st += item.qualifier
                 else:
+                    # group 74 is the last group with "abc"-like setting
                     if item.number < 75:
                         st += "abc"
                 # failed, just assign "1"

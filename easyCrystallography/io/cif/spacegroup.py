@@ -27,7 +27,10 @@ class SpaceGroup(CIF_Template):
         ("symmetry_ops", "'symop.operation_xyz'"),
     ]
     _CIF_ALTERNATES: ClassVar[List[Tuple[str, List[str]]]] = [
-        ["space_group_HM_name", ["_name_H-M_full", "_IT_number", "_name_Hall", "_name_H-M_alt", ".name_H-M_alt"]],
+        ["space_group_HM_name", ["_name_H-M", "_name_H-M_full",
+                                 "_IT_number", "_Int_Tables_number",
+                                 "_name_Hall", "_name_H-M_alt",
+                                 ".name_H-M_alt"]],
     ]
 
     def __init__(self, reference_class=_SpaceGroup):
@@ -46,6 +49,9 @@ class SpaceGroup(CIF_Template):
                     idx = a.index(item[0])
                     for i in b[idx]:
                         value = block.find_pair_item(self._CIF_SECTION_NAME + i)
+                        if value is None:
+                            # old version
+                            value = block.find_pair_item("_symmetry" + self._CIF_SECTION_NAME + i)
                         if value is not None:
                             break
             if value is None:
