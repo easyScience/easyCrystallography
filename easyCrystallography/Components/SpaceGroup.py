@@ -208,15 +208,20 @@ class SpaceGroup(BaseObj):
                 break
             if item.number == number:
                 st = ""
+                # Cases where ext and qualifier are not empty
                 if item.ext and item.ext != "\x00":
                     st += item.ext
                 if item.qualifier:
                     st += item.qualifier
-                else:
-                    # group 74 is the last group with "abc"-like setting
-                    if item.number < 75:
-                        st += "abc"
-                # failed, just assign "1"
+                # special cases of defaul settings, not explicitly defined in gemmi
+                system = item.crystal_system_str()
+                if system == "orthorhombic" and not item.qualifier:
+                    st += "abc"
+                elif system == "trigonal" and not item.qualifier:
+                    st += "h"
+                elif system == "tetragonal" and not item.qualifier:
+                    st += "1"
+                # failed, just assign "1" to triclinic/monoclinic
                 if not st:
                     st = "1"
                 ext.append(st)
