@@ -41,7 +41,7 @@ classifiers = [
 packages = [ { include = "easyCrystallography" } ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<=3.12"
+python = ">=3.8,<3.12"
 easysciencecore = "^0.3.0"
 periodictable = "^1.6.1"
 gemmi = "^0.5.8"
