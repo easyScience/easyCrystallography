@@ -109,9 +109,11 @@ class Specie(Descriptor):
             addProp(self, k, fget=self.__getter_periodic(k))
         rep = f"{self._raw_data['element']}"
         if self.is_ion:
-            rep += f"{self._raw_data['oxi_state']}"
+            rep += f"{abs(self._raw_data['oxi_state'])}"
             if self._raw_data["oxi_state"] > 0:
                 rep += "+"
+            else:
+                rep += "-"
         return rep
 
     def __repr__(self) -> str:
